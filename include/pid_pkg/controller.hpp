@@ -10,6 +10,7 @@
 #include <autoware_msgs/VehicleCmd.h>
 #include <visualization_msgs/Marker.h>
 #include <cmath>
+#include <tf/transform_listener.h>
 
 namespace controller {
 
@@ -21,7 +22,7 @@ namespace controller {
         ros::Subscriber odom_sub;
         ros::Publisher control_pub;
         ros::Publisher path_pub;
-        ros::Publisher mark_pub;
+        ros::Publisher mark_pub; 
 
         int wp_index, ctrl_index;
         int marker_id = 0;
@@ -34,13 +35,14 @@ namespace controller {
 
         geometry_msgs::PoseStamped target_point;
         geometry_msgs::PoseWithCovariance current_point;
+        nav_msgs::Odometry vehicle_odom;
         nav_msgs::Path path;
 
         bool ReadParameters();
         double PID(double error, double t_Ko, double t_Ki, double t_Kt);
         void PathCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void OdomCallback(const nav_msgs::Odometry::ConstPtr& msg);
-        double UpdateError(geometry_msgs::Pose& target_point, geometry_msgs::Pose& current_point);
+        double UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose);
         void ChooseWaypoint();
         void ControlOutput();
 

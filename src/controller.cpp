@@ -12,8 +12,6 @@ namespace controller
             ros::requestShutdown();
         }
 
-        path.header.frame_id = "map";
-
         path_sub = nh_.subscribe("/odom", 10, &Controller::PathCallback, this);
         odom_sub = nh_.subscribe("/odom_sim", 10, &Controller::OdomCallback, this);
         control_pub = nh_.advertise<autoware_msgs::VehicleCmd>("/vehicle_cmd", 10);
@@ -50,10 +48,21 @@ namespace controller
 
     void Controller::OdomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
+/* 
         ROS_INFO("Simdiki Konum: [%f, %f]", msg->pose.pose.position.x, msg->pose.pose.position.y);
         current_heading = tf::getYaw(msg->pose.pose.orientation);
         ROS_INFO("Simdiki Yaw: [%f]", current_heading);
         current_point.pose = msg->pose.pose;
+ */
+
+        vehicle_odom = *msg;
+        current_point.pose = vehicle_odom.pose.pose;
+        current_heading = tf::getYaw(vehicle_odom.pose.pose.orientation);
+
+        ROS_INFO("Simdiki Konum: [%f, %f]", current_point.pose.position.x, current_point.pose.position.y);
+        ROS_INFO("Simdiki Yaw: [%f]", current_heading);
+
+        ROS_INFO("Vehicle Frame id: [%s]", vehicle_odom.header.frame_id.c_str());
 
         ChooseWaypoint();
         ControlOutput();
@@ -95,7 +104,7 @@ namespace controller
         pose_stamped.header = msg->header;
 
         path.poses.push_back(pose_stamped);
-        path.header.stamp = ros::Time::now();
+        path.header = msg->header;
         path_pub.publish(path);
     }
 
@@ -104,17 +113,17 @@ namespace controller
     {
         wp_index = ctrl_index;
         geometry_msgs::PoseStamped waypoint = path.poses[wp_index];
-        double min_distance = std::sqrt(std::pow((waypoint.pose.position.x - current_point.pose.position.x), 2) + std::pow((waypoint.pose.position.y - current_point.pose.position.y), 2));
+        double min_distance2 = std::pow((waypoint.pose.position.x - current_point.pose.position.x), 2) + std::pow((waypoint.pose.position.y - current_point.pose.position.y), 2);
 
         for (int i = 1; i < path.poses.size(); ++i)
         {
-            geometry_msgs::PoseStamped waypoint_ = path.poses[i];
-            double distance = std::sqrt(std::pow((waypoint_.pose.position.x - current_point.pose.position.x), 2) + std::pow((waypoint_.pose.position.y - current_point.pose.position.y), 2));
+            geometry_msgs::PoseStamped& waypoint_ = path.poses[i];
+            double distance2 = std::pow((waypoint_.pose.position.x - current_point.pose.position.x), 2) + std::pow((waypoint_.pose.position.y - current_point.pose.position.y), 2);
 
-            if (distance < min_distance)
+            if (distance2 < min_distance2)
             {
                 wp_index = i + ctrl_index;
-                min_distance = distance;
+                min_distance2 = distance2;
             }
         }
 
@@ -143,32 +152,47 @@ namespace controller
     }
 
 
-    double Controller::UpdateError(geometry_msgs::Pose& target_point, geometry_msgs::Pose& current_point)
+    double Controller::UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose)
     {
 
-        double dx = target_point.position.x - current_point.position.x;
-        double dy = target_point.position.y - current_point.position.y;
+        tf::Vector3 target_vec(target_point_pose.position.x, target_point_pose.position.y, 0.0);
+        tf::Vector3 current_vec(current_point_pose.position.x, current_point_pose.position.y, 0.0);
 
-        double goal_heading = atan2(dy, dx); 
+        tf::Transform transform;
+        tf::Quaternion q;
+        q.setRPY(0, 0, tf::getYaw(current_point_pose.orientation));
+        transform.setRotation(q);
+        transform.setOrigin(current_vec);
 
-        double error = goal_heading - current_heading;
+        tf::Vector3 error_vec = transform.inverse() * target_vec;
 
+        double error = atan2(error_vec.y(), error_vec.x());
+
+/* 
+        tf::Vector3 target_vec(target_point_pose.position.x, target_point_pose.position.y, 0.0);
+        tf::Vector3 current_vec(current_point_pose.position.x, current_point_pose.position.y, 0.0);
+
+        tf::Vector3 error_vec = target_vec - current_vec;
+
+        double goal_heading = atan2(error_vec.y(), error_vec.x());
+        double current_heading_ = tf::getYaw(current_point_pose.orientation);
+
+        double error = goal_heading - current_heading_;
+ */
 
         if (std::isnan(error)) return 0;
 
-        if (abs(error) > M_PI)
+        if (error > M_PI) 
         {
-            if (error > M_PI) 
-            {
-                error -= 2 * M_PI;
-                return error;
-            }
-            if (error < M_PI)
-            {
-                error += 2 * M_PI;
-                return error;
-            }
-        }        
+            error -= 2 * M_PI;
+            return error;
+        }
+
+        else if (error < -M_PI)
+        {
+            error += 2 * M_PI;
+            return error;
+        }
 
         return error;
     }
