@@ -155,6 +155,112 @@ namespace controller
     double Controller::UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose)
     {
 
+        double transformed_vec[3] = {0, 0, 0};
+        LocalTransform(target_point_pose, current_point_pose, transformed_vec);
+
+        double error = atan2(transformed_vec[1], transformed_vec[0]);
+
+        if (std::isnan(error)) return 0;
+
+        if (error > M_PI) 
+        {
+            error -= 2 * M_PI;
+        }
+
+        else if (error < -M_PI)
+        {
+            error += 2 * M_PI;
+        }
+
+        return error;
+    }
+
+
+    void Controller::LocalTransform(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose, double transformed_vector[3])
+    {
+
+//Bileşke Matrisli Kod:
+        
+        double tx = -1 * current_point_pose.position.x;
+        double ty = -1 * current_point_pose.position.y;
+
+        double target_vec[3] = {target_point_pose.position.x, target_point_pose.position.y, 1};
+
+        double current_heading_ = tf::getYaw(current_point_pose.orientation);
+        double TransformationMatrix[3][3] = {
+            {cos(current_heading_), sin(current_heading_), cos(current_heading_) * tx + sin(current_heading_) * ty},
+            {-sin(current_heading_), cos(current_heading_), -sin(current_heading_) * tx + cos(current_heading_) * ty},
+            {0.0, 0.0, 1.0}
+        };
+
+        for (int i=0; i<3; i++) {
+        
+            transformed_vector[i] = 0;
+
+            for (int j=0; j<3; j++) {
+
+                transformed_vector[i] += TransformationMatrix[i][j] * target_vec[j];
+
+           }
+        }
+
+
+
+//Ayrık Matrisli Kod:
+/* 
+        double tx = -current_point_pose.position.x;
+        double ty = -current_point_pose.position.y;
+        double current_heading_ = tf::getYaw(current_point_pose.orientation);
+        double target_vector[3] = {target_point_pose.position.x, target_point_pose.position.y, 1};
+
+        double translation_matrix[3][3] = {
+            {1, 0, tx},
+            {0, 1, ty},
+            {0, 0, 1}
+        };
+
+        double rotation_matrix[3][3] = {
+            {cos(current_heading_), sin(current_heading_), 0},
+            {-sin(current_heading_), cos(current_heading_), 0},
+            {0.0, 0.0, 1.0}
+        };
+
+        double translated_vector[3];
+
+        for (int i=0; i<3; i++) {
+            translated_vector[i] = 0;
+            for (int j=0; j<3; j++) {
+
+                translated_vector[i] += translation_matrix[i][j] * target_vector[j];
+
+            }
+        }
+
+        for (int i=0; i<3; i++) {
+            transformed_vector[i] = 0;
+            for (int j=0; j<3; j++) {
+
+                transformed_vector[i] += rotation_matrix[i][j] * translated_vector[j];
+    
+            }
+        }
+ */
+
+
+//Matrissiz Kod:
+/* 
+        double translated_x = target_point_pose.position.x - current_point_pose.position.x;
+        double translated_y = target_point_pose.position.y - current_point_pose.position.y;
+        double current_heading_ = tf::getYaw(current_point_pose.orientation);
+
+        transformed_vector[0] = translated_x * cos(current_heading_) + translated_y * sin(current_heading_);
+        transformed_vector[1] = translated_x * -sin(current_heading_) + translated_y * cos(current_heading_);
+        transformed_vector[2] = 1;
+ */
+
+
+//tf Kütüphaneli Kod:
+/* 
         tf::Vector3 target_vec(target_point_pose.position.x, target_point_pose.position.y, 0.0);
         tf::Vector3 current_vec(current_point_pose.position.x, current_point_pose.position.y, 0.0);
 
@@ -166,35 +272,11 @@ namespace controller
 
         tf::Vector3 error_vec = transform.inverse() * target_vec;
 
-        double error = atan2(error_vec.y(), error_vec.x());
-
-/* 
-        tf::Vector3 target_vec(target_point_pose.position.x, target_point_pose.position.y, 0.0);
-        tf::Vector3 current_vec(current_point_pose.position.x, current_point_pose.position.y, 0.0);
-
-        tf::Vector3 error_vec = target_vec - current_vec;
-
-        double goal_heading = atan2(error_vec.y(), error_vec.x());
-        double current_heading_ = tf::getYaw(current_point_pose.orientation);
-
-        double error = goal_heading - current_heading_;
+        transformed_vector[0] = error_vec.x();
+        transformed_vector[1] = error_vec.y();
+        transformed_vector[2] = 1;
  */
 
-        if (std::isnan(error)) return 0;
-
-        if (error > M_PI) 
-        {
-            error -= 2 * M_PI;
-            return error;
-        }
-
-        else if (error < -M_PI)
-        {
-            error += 2 * M_PI;
-            return error;
-        }
-
-        return error;
     }
 
 }

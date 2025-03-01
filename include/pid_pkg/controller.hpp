@@ -22,7 +22,7 @@ namespace controller {
         ros::Subscriber odom_sub;
         ros::Publisher control_pub;
         ros::Publisher path_pub;
-        ros::Publisher mark_pub; 
+        ros::Publisher mark_pub;
 
         int wp_index, ctrl_index;
         int marker_id = 0;
@@ -45,6 +45,7 @@ namespace controller {
         double UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose);
         void ChooseWaypoint();
         void ControlOutput();
+        void LocalTransform(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose, double transformed_vector[3]);
 
         public:
 
