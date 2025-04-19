@@ -27,6 +27,7 @@ namespace controller {
         int wp_index, ctrl_index;
         int marker_id = 0;
         double Ko, Ki, Kt, current_heading;
+        double axle_length;
         double velocity = 10;
         
         double d_error;
