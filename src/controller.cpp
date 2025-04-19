@@ -23,13 +23,13 @@ namespace controller
 
     bool Controller::ReadParameters()
     {
-        if (!nh_.getParam("pid_katsayilari/Ko", Ko)) return false;
+        if (!nh_.getParam("pid_katsayilari/Kp", Kp)) return false;
         if (!nh_.getParam("pid_katsayilari/Ki", Ki)) return false;
-        if (!nh_.getParam("pid_katsayilari/Kt", Kt)) return false;
+        if (!nh_.getParam("pid_katsayilari/Kd", Kd)) return false;
         if (!nh_.getParam("ctrl_index", ctrl_index)) return false;
         if (!nh_.getParam("axle_length", axle_length)) return false;
 
-        ROS_INFO("PID Katsayilari: [%f, %f, %f]", Ko, Ki, Kt);
+        ROS_INFO("PID Katsayilari: [%f, %f, %f]", Kp, Ki, Kd);
         ROS_INFO("Control Index: [%d]", ctrl_index);
         ROS_INFO("Sase Uzunlugu: [%f]", axle_length);
 
@@ -37,53 +37,38 @@ namespace controller
     }
 
 
-    double Controller::PID(double error, double t_Ko, double t_Ki, double t_Kt)
+    double Controller::PID(double error, double t_Kp, double t_Ki, double t_Kd)
     {
         i_error += error;
         d_error = error - prev_error;
         prev_error = error;
 
-        return (t_Ko * error) + (t_Ki * i_error) + (t_Kt * d_error);
+        return (t_Kp * error) + (t_Ki * i_error) + (t_Kd * d_error);
     }
 
 
     void Controller::OdomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
-<<<<<<< HEAD
-/* 
-        ROS_INFO("Simdiki Konum: [%f, %f]", msg->pose.pose.position.x, msg->pose.pose.position.y);
-        current_heading = tf::getYaw(msg->pose.pose.orientation);
-        ROS_INFO("Simdiki Yaw: [%f]", current_heading);
-        current_point.pose = msg->pose.pose;
- */
-
-        vehicle_odom = *msg;
-        current_point.pose = vehicle_odom.pose.pose;
-        current_heading = tf::getYaw(vehicle_odom.pose.pose.orientation);
-
-        ROS_INFO("Simdiki Konum: [%f, %f]", current_point.pose.position.x, current_point.pose.position.y);
-        ROS_INFO("Simdiki Yaw: [%f]", current_heading);
-
-        ROS_INFO("Vehicle Frame id: [%s]", vehicle_odom.header.frame_id.c_str());
-=======
 
         vehicle_odom = *msg;
         current_heading = tf::getYaw(vehicle_odom.pose.pose.orientation);
-        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length;
-        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length;
+        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length/2;
+        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length/2;
 
         ROS_INFO("Simdiki Konum: [%f, %f]", vehicle_odom.pose.pose.position.x, vehicle_odom.pose.pose.position.y);
         ROS_INFO("Simdiki Yaw: [%f]", current_heading);
->>>>>>> Sase parametresi eklendi.
 
+        if (path.poses.size() != 0)
+        {
         ChooseWaypoint();
         ControlOutput();
+        }
     }
 
 
     void Controller::ControlOutput()
     {
-        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Ko, Ki, Kt);
+        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
 
         double steering_angle_degree = steering_angle * (180 / M_PI);
 
@@ -125,20 +110,12 @@ namespace controller
     {
         wp_index = ctrl_index;
         geometry_msgs::PoseStamped waypoint = path.poses[wp_index];
-<<<<<<< HEAD
-        double min_distance2 = std::pow((waypoint.pose.position.x - current_point.pose.position.x), 2) + std::pow((waypoint.pose.position.y - current_point.pose.position.y), 2);
-=======
         double min_distance2 = std::pow((waypoint.pose.position.x - vehicle_odom.pose.pose.position.x), 2) + std::pow((waypoint.pose.position.y - vehicle_odom.pose.pose.position.y), 2);
->>>>>>> Sase parametresi eklendi.
 
         for (int i = 1; i < path.poses.size(); ++i)
         {
             geometry_msgs::PoseStamped& waypoint_ = path.poses[i];
-<<<<<<< HEAD
-            double distance2 = std::pow((waypoint_.pose.position.x - current_point.pose.position.x), 2) + std::pow((waypoint_.pose.position.y - current_point.pose.position.y), 2);
-=======
             double distance2 = std::pow((waypoint_.pose.position.x - vehicle_odom.pose.pose.position.x), 2) + std::pow((waypoint_.pose.position.y - vehicle_odom.pose.pose.position.y), 2);
->>>>>>> Sase parametresi eklendi.
 
             if (distance2 < min_distance2)
             {
@@ -198,25 +175,15 @@ namespace controller
 
 //Bileşke Matrisli Kod:
         
-<<<<<<< HEAD
-        double tx = -1 * current_point_pose.position.x;
-        double ty = -1 * current_point_pose.position.y;
-=======
         double tx = current_point_pose.position.x;
         double ty = current_point_pose.position.y;
->>>>>>> Sase parametresi eklendi.
 
         double target_vec[3] = {target_point_pose.position.x, target_point_pose.position.y, 1};
 
         double current_heading_ = tf::getYaw(current_point_pose.orientation);
         double TransformationMatrix[3][3] = {
-<<<<<<< HEAD
-            {cos(current_heading_), sin(current_heading_), cos(current_heading_) * tx + sin(current_heading_) * ty},
-            {-sin(current_heading_), cos(current_heading_), -sin(current_heading_) * tx + cos(current_heading_) * ty},
-=======
             {cos(-current_heading_), -sin(-current_heading_), cos(-current_heading_) * -tx - sin(-current_heading_) * -ty},
             {sin(-current_heading_), cos(-current_heading_), sin(-current_heading_) * -tx + cos(-current_heading_) * -ty},
->>>>>>> Sase parametresi eklendi.
             {0.0, 0.0, 1.0}
         };
 
@@ -231,11 +198,6 @@ namespace controller
            }
         }
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> Sase parametresi eklendi.
 //Ayrık Matrisli Kod:
 /* 
         double tx = -current_point_pose.position.x;

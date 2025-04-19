@@ -26,7 +26,7 @@ namespace controller {
 
         int wp_index, ctrl_index;
         int marker_id = 0;
-        double Ko, Ki, Kt, current_heading;
+        double Kp, Ki, Kd, current_heading;
         double axle_length;
         double velocity = 10;
         
@@ -40,7 +40,7 @@ namespace controller {
         nav_msgs::Path path;
 
         bool ReadParameters();
-        double PID(double error, double t_Ko, double t_Ki, double t_Kt);
+        double PID(double error, double t_Kp, double t_Ki, double t_Kd);
         void PathCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void OdomCallback(const nav_msgs::Odometry::ConstPtr& msg);
         double UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose);

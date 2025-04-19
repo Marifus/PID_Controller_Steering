@@ -1,11 +1,7 @@
 pid_katsayilari:
-  Ko: 1.4
+  Kp: 1.3
   Ki: 0
-  Kt: 1.4
+  Kd: 0.8
 
-<<<<<<< HEAD
 ctrl_index: 3
-=======
-ctrl_index: 3
-axle_length: 0.75
->>>>>>> Sase parametresi eklendi.
+axle_length: 1.5
