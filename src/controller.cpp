@@ -60,8 +60,8 @@ namespace controller
 
         if (path.poses.size() != 0)
         {
-        ChooseWaypoint();
-        ControlOutput();
+            ChooseWaypoint();
+            ControlOutput();
         }
     }
 
