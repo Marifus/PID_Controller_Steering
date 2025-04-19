@@ -52,8 +52,8 @@ namespace controller
 
         vehicle_odom = *msg;
         current_heading = tf::getYaw(vehicle_odom.pose.pose.orientation);
-        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length/2;
-        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length/2;
+        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length;
+        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length;
 
         ROS_INFO("Simdiki Konum: [%f, %f]", vehicle_odom.pose.pose.position.x, vehicle_odom.pose.pose.position.y);
         ROS_INFO("Simdiki Yaw: [%f]", current_heading);
@@ -68,7 +68,7 @@ namespace controller
 
     void Controller::ControlOutput()
     {
-        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
+        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Ko, Ki, Kt);
 
         double steering_angle_degree = steering_angle * (180 / M_PI);
 
