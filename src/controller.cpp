@@ -12,8 +12,8 @@ namespace controller
             ros::requestShutdown();
         }
 
-        path_sub = nh_.subscribe("/odom", 10, &Controller::PathCallback, this);
-        odom_sub = nh_.subscribe("/odom_sim", 10, &Controller::OdomCallback, this);
+        path_sub = nh_.subscribe("/shortest_path", 10, &Controller::PathCallback, this);
+        odom_sub = nh_.subscribe("/odom", 10, &Controller::OdomCallback, this);
         control_pub = nh_.advertise<autoware_msgs::VehicleCmd>("/vehicle_cmd", 10);
         path_pub = nh_.advertise<nav_msgs::Path>("/path", 10);
         mark_pub = nh_.advertise<visualization_msgs::Marker>("/waypoint", 10);
@@ -68,7 +68,7 @@ namespace controller
 
     void Controller::ControlOutput()
     {
-        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Ko, Ki, Kt);
+        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
 
         double steering_angle_degree = steering_angle * (180 / M_PI);
 
