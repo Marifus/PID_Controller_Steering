@@ -1,7 +1,8 @@
 pid_katsayilari:
   Kp: 1.3
   Ki: 0
-  Kd: 0.8
+  Kd: 0.7
 
-ctrl_index: 3
-axle_length: 1.25
+ctrl_index: 8
+ctrl_max: 3
+axle_length: 0.9842

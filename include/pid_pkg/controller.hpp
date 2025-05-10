@@ -27,26 +27,26 @@ namespace controller {
         int wp_index, ctrl_index;
         int marker_id = 0;
         double Kp, Ki, Kd, current_heading;
-        double axle_length;
+        double axle_length, ctrl_max;
         double velocity = 10;
         
         double d_error;
         double i_error = 0;
         double prev_error = 0;
 
-        geometry_msgs::PoseStamped target_point;
-        geometry_msgs::PoseWithCovariance current_point;
         nav_msgs::Odometry vehicle_odom;
         nav_msgs::Path path;
 
         bool ReadParameters();
         double PID(double error, double t_Kp, double t_Ki, double t_Kd);
-        void PathCallback(const nav_msgs::Odometry::ConstPtr& msg);
+        //void PathCallback(const nav_msgs::Odometry::ConstPtr& msg);
+        void PathCallback(const nav_msgs::Path::ConstPtr& msg);
         void OdomCallback(const nav_msgs::Odometry::ConstPtr& msg);
-        double UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose);
-        void ChooseWaypoint();
+        double UpdateError(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose);
+        geometry_msgs::PoseStamped ChooseWaypoint(const geometry_msgs::Pose& current_point_pose, const nav_msgs::Path& t_path, int ctrl_idx, double ctrl_max);
+        int ClosestWaypointIndex(const geometry_msgs::Pose& current_pose, const nav_msgs::Path& t_path);
         void ControlOutput();
-        void LocalTransform(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose, double transformed_vector[3]);
+        void LocalTransform(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose, double transformed_vector[3]);
 
         public:
 

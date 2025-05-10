@@ -27,10 +27,11 @@ namespace controller
         if (!nh_.getParam("pid_katsayilari/Ki", Ki)) return false;
         if (!nh_.getParam("pid_katsayilari/Kd", Kd)) return false;
         if (!nh_.getParam("ctrl_index", ctrl_index)) return false;
+        if (!nh_.getParam("ctrl_max", ctrl_max)) return false;
         if (!nh_.getParam("axle_length", axle_length)) return false;
 
         ROS_INFO("PID Katsayilari: [%f, %f, %f]", Kp, Ki, Kd);
-        ROS_INFO("Control Index: [%d]", ctrl_index);
+        ROS_INFO("Control Index: [%d]   Control Max: [%f]", ctrl_index, ctrl_max);
         ROS_INFO("Sase Uzunlugu: [%f]", axle_length);
 
         return true;
@@ -52,22 +53,30 @@ namespace controller
 
         vehicle_odom = *msg;
         current_heading = tf::getYaw(vehicle_odom.pose.pose.orientation);
-        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length;
-        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length;
+        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length*0;
+        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length*0;
 
         ROS_INFO("Simdiki Konum: [%f, %f]", vehicle_odom.pose.pose.position.x, vehicle_odom.pose.pose.position.y);
         ROS_INFO("Simdiki Yaw: [%f]", current_heading);
 
         if (path.poses.size() != 0)
         {
-            ChooseWaypoint();
             ControlOutput();
+        }
+
+        else
+        {
+            autoware_msgs::VehicleCmd control_msg;
+            control_msg.twist_cmd.twist.angular.z = 0;
+            control_msg.twist_cmd.twist.linear.x = 0;
+            control_pub.publish(control_msg);
         }
     }
 
 
     void Controller::ControlOutput()
     {
+        geometry_msgs::PoseStamped target_point = ChooseWaypoint(vehicle_odom.pose.pose, path, ctrl_index, ctrl_max);
         double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
 
         double steering_angle_degree = steering_angle * (180 / M_PI);
@@ -93,7 +102,7 @@ namespace controller
     }
 
 
-    void Controller::PathCallback(const nav_msgs::Odometry::ConstPtr& msg)
+/*     void Controller::PathCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
         geometry_msgs::PoseStamped pose_stamped;
 
@@ -103,56 +112,114 @@ namespace controller
         path.poses.push_back(pose_stamped);
         path.header = msg->header;
         path_pub.publish(path);
+    } */
+
+
+    void Controller::PathCallback(const nav_msgs::Path::ConstPtr& msg)
+    {
+        path = *msg;
+
+        for (int i = 0; i < path.poses.size(); ++i)
+        {
+            if (i+1<path.poses.size())
+            {
+                while (path.poses[i].pose.position.x == path.poses[i+1].pose.position.x && path.poses[i].pose.position.y == path.poses[i+1].pose.position.y)
+                {
+                    path.poses.erase(path.poses.begin()+i);
+                    if (i+1==path.poses.size()) break;
+                }
+            }
+        }
     }
 
 
-    void Controller::ChooseWaypoint()
+    geometry_msgs::PoseStamped Controller::ChooseWaypoint(const geometry_msgs::Pose& current_point_pose, const nav_msgs::Path& t_path, int ctrl_idx, double ctrl_max)
     {
-        wp_index = ctrl_index;
-        geometry_msgs::PoseStamped waypoint = path.poses[wp_index];
-        double min_distance2 = std::pow((waypoint.pose.position.x - vehicle_odom.pose.pose.position.x), 2) + std::pow((waypoint.pose.position.y - vehicle_odom.pose.pose.position.y), 2);
+/*         int closest_idx = ClosestWaypointIndex(current_point_pose, t_path); */
+        int closest_idx = 0;
+        int target_idx = closest_idx + ctrl_idx;
 
-        for (int i = 1; i < path.poses.size(); ++i)
+        while (!(target_idx<path.poses.size()))
         {
-            geometry_msgs::PoseStamped& waypoint_ = path.poses[i];
-            double distance2 = std::pow((waypoint_.pose.position.x - vehicle_odom.pose.pose.position.x), 2) + std::pow((waypoint_.pose.position.y - vehicle_odom.pose.pose.position.y), 2);
+            target_idx--;
+        }
 
-            if (distance2 < min_distance2)
+        geometry_msgs::PoseStamped target_point = t_path.poses[target_idx];
+
+        while (std::sqrt(std::pow(target_point.pose.position.x-current_point_pose.position.x, 2) + std::pow(target_point.pose.position.y-current_point_pose.position.y, 2)) > ctrl_max)
+        {
+            if (target_idx>0)
             {
-                wp_index = i + ctrl_index;
-                min_distance2 = distance2;
+                target_idx--;
+                target_point = t_path.poses[target_idx];
+            }
+
+            else
+            {
+                target_idx = 0;
+                target_point = t_path.poses[target_idx];
+                break;
             }
         }
 
-        waypoint = path.poses[wp_index];
-        target_point = waypoint;
-
         visualization_msgs::Marker marker;
-        marker.header = target_point.header;
+        marker.header = t_path.header;
         marker.id = marker_id;
         marker.action = visualization_msgs::Marker::ADD;
         marker.pose = target_point.pose;
         marker.type = visualization_msgs::Marker::SPHERE;
-        marker.scale.x = 0.1;
-        marker.scale.y = 0.1;
-        marker.scale.z = 0.1;
+        marker.scale.x = 0.15;
+        marker.scale.y = 0.15;
+        marker.scale.z = 0.15;
         marker.color.a = 1.0;
-        marker.color.r = 1.0;
+        marker.color.r = 0.0;
         marker.color.g = 0.0;
         marker.color.b = 1.0;
         
         mark_pub.publish(marker);
-        marker_id++;
+/*         marker_id++; */
+
+        return target_point;
     }
 
 
-    double Controller::UpdateError(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose)
+    int Controller::ClosestWaypointIndex(const geometry_msgs::Pose& current_point_pose, const nav_msgs::Path& t_path)
     {
+        int closest_point_index;
+        double min_distance2;
 
+        for (int i = 0; i < t_path.poses.size(); ++i)
+        {
+            geometry_msgs::PoseStamped waypoint = t_path.poses[i];
+
+            if (i == 0)
+            {
+                closest_point_index = i;
+                min_distance2 = std::pow((waypoint.pose.position.x - current_point_pose.position.x), 2) + std::pow((waypoint.pose.position.y - current_point_pose.position.y), 2);
+            }
+
+            else 
+            {
+                double distance2 = std::pow((waypoint.pose.position.x - current_point_pose.position.x), 2) + std::pow((waypoint.pose.position.y - current_point_pose.position.y), 2);
+
+                if (distance2 < min_distance2)
+                {
+                    closest_point_index = i;
+                    min_distance2 = distance2;
+                }
+            }
+        }
+
+        return closest_point_index;
+    }
+
+
+    double Controller::UpdateError(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose)
+    {
         double transformed_vec[3] = {0, 0, 0};
         LocalTransform(target_point_pose, current_point_pose, transformed_vec);
 
-        double error = atan2(transformed_vec[1], transformed_vec[0]);
+        double error = std::atan2(transformed_vec[1], transformed_vec[0]);
 
         if (std::isnan(error)) return 0;
 
@@ -170,7 +237,7 @@ namespace controller
     }
 
 
-    void Controller::LocalTransform(geometry_msgs::Pose& target_point_pose, geometry_msgs::Pose& current_point_pose, double transformed_vector[3])
+    void Controller::LocalTransform(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose, double transformed_vector[3])
     {
 
 //Bileşke Matrisli Kod:
