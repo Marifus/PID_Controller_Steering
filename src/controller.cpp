@@ -12,6 +12,11 @@ namespace controller
             ros::requestShutdown();
         }
 
+        marker_id = 0;
+        d_error = 0;
+        i_error = 0;
+        prev_error = 0;
+
         path_sub = nh_.subscribe("/shortest_path", 10, &Controller::PathCallback, this);
         odom_sub = nh_.subscribe("/odom", 10, &Controller::OdomCallback, this);
         control_pub = nh_.advertise<autoware_msgs::VehicleCmd>("/vehicle_cmd", 10);
@@ -29,76 +34,17 @@ namespace controller
         if (!nh_.getParam("ctrl_index", ctrl_index)) return false;
         if (!nh_.getParam("ctrl_max", ctrl_max)) return false;
         if (!nh_.getParam("axle_length", axle_length)) return false;
+        if (!nh_.getParam("velocity", velocity)) return false;
+        if (!nh_.getParam("input_log", input_log)) return false;
+        if (!nh_.getParam("output_log", output_log)) return false;
 
         ROS_INFO("PID Katsayilari: [%f, %f, %f]", Kp, Ki, Kd);
         ROS_INFO("Control Index: [%d]   Control Max: [%f]", ctrl_index, ctrl_max);
         ROS_INFO("Sase Uzunlugu: [%f]", axle_length);
+        ROS_INFO("Arac Hizi: [%f]", velocity);
+        ROS_INFO("Girdi/Cikti Gosterme: [%d, %d]", input_log, output_log);
 
         return true;
-    }
-
-
-    double Controller::PID(double error, double t_Kp, double t_Ki, double t_Kd)
-    {
-        i_error += error;
-        d_error = error - prev_error;
-        prev_error = error;
-
-        return (t_Kp * error) + (t_Ki * i_error) + (t_Kd * d_error);
-    }
-
-
-    void Controller::OdomCallback(const nav_msgs::Odometry::ConstPtr& msg)
-    {
-
-        vehicle_odom = *msg;
-        current_heading = tf::getYaw(vehicle_odom.pose.pose.orientation);
-        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length*0;
-        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length*0;
-
-        ROS_INFO("Simdiki Konum: [%f, %f]", vehicle_odom.pose.pose.position.x, vehicle_odom.pose.pose.position.y);
-        ROS_INFO("Simdiki Yaw: [%f]", current_heading);
-
-        if (path.poses.size() != 0)
-        {
-            ControlOutput();
-        }
-
-        else
-        {
-            autoware_msgs::VehicleCmd control_msg;
-            control_msg.twist_cmd.twist.angular.z = 0;
-            control_msg.twist_cmd.twist.linear.x = 0;
-            control_pub.publish(control_msg);
-        }
-    }
-
-
-    void Controller::ControlOutput()
-    {
-        geometry_msgs::PoseStamped target_point = ChooseWaypoint(vehicle_odom.pose.pose, path, ctrl_index, ctrl_max);
-        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
-
-        double steering_angle_degree = steering_angle * (180 / M_PI);
-
-        if (steering_angle_degree > 100) {
-
-            steering_angle = 100 * (M_PI / 180);
-
-        }
-
-        if (steering_angle_degree < -100) {
-
-            steering_angle = -100 * (M_PI / 180);
-
-        }
-
-        ROS_INFO("Donus Acisi: [%f]", steering_angle);
-
-        autoware_msgs::VehicleCmd control_msg;
-        control_msg.twist_cmd.twist.angular.z = steering_angle;
-        control_msg.twist_cmd.twist.linear.x = velocity;
-        control_pub.publish(control_msg);
     }
 
 
@@ -130,6 +76,76 @@ namespace controller
                 }
             }
         }
+    }
+
+
+    void Controller::OdomCallback(const nav_msgs::Odometry::ConstPtr& msg)
+    {
+
+        vehicle_odom = *msg;
+        current_heading = GetYaw(vehicle_odom.pose.pose.orientation);
+        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length*0.5;
+        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length*0.5;
+
+        if(input_log)
+        {
+            ROS_INFO("Simdiki Konum: [%f, %f]", vehicle_odom.pose.pose.position.x, vehicle_odom.pose.pose.position.y);
+            ROS_INFO("Simdiki Yaw: [%f]", current_heading);
+        }
+
+        if (path.poses.size() != 0)
+        {
+            ControlOutput();
+        }
+
+        else
+        {
+            autoware_msgs::VehicleCmd control_msg;
+            control_msg.twist_cmd.twist.angular.z = 0;
+            control_msg.twist_cmd.twist.linear.x = 0;
+            control_pub.publish(control_msg);
+        }
+    }
+
+
+    void Controller::ControlOutput()
+    {
+        geometry_msgs::PoseStamped target_point = ChooseWaypoint(vehicle_odom.pose.pose, path, ctrl_index, ctrl_max);
+        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
+
+        double steering_angle_degree = steering_angle * (180 / M_PI);
+
+        if (steering_angle_degree > 100) {
+
+            steering_angle = 100 * (M_PI / 180);
+
+        }
+
+        else if (steering_angle_degree < -100) {
+
+            steering_angle = -100 * (M_PI / 180);
+
+        }
+
+        if(output_log)
+        {
+            ROS_INFO("Donus Acisi: [%f]", steering_angle);
+        }
+
+        autoware_msgs::VehicleCmd control_msg;
+        control_msg.twist_cmd.twist.angular.z = steering_angle;
+        control_msg.twist_cmd.twist.linear.x = velocity;
+        control_pub.publish(control_msg);
+    }
+
+
+    double Controller::PID(double error, double t_Kp, double t_Ki, double t_Kd)
+    {
+        i_error += error;
+        d_error = error - prev_error;
+        prev_error = error;
+
+        return (t_Kp * error) + (t_Ki * i_error) + (t_Kd * d_error);
     }
 
 
@@ -216,10 +232,9 @@ namespace controller
 
     double Controller::UpdateError(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose)
     {
-        double transformed_vec[3] = {0, 0, 0};
-        LocalTransform(target_point_pose, current_point_pose, transformed_vec);
+        geometry_msgs::Pose transformed_pose = LocalTransform(current_point_pose, target_point_pose);
 
-        double error = std::atan2(transformed_vec[1], transformed_vec[0]);
+        double error = std::atan2(transformed_pose.position.y, transformed_pose.position.x);
 
         if (std::isnan(error)) return 0;
 
@@ -237,105 +252,27 @@ namespace controller
     }
 
 
-    void Controller::LocalTransform(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose, double transformed_vector[3])
+    geometry_msgs::Pose Controller::LocalTransform(const geometry_msgs::Pose& origin_pose, const geometry_msgs::Pose& target_point_pose)
+    {   
+        tf2::Transform origin_tf, target_point_tf, g2l_transform, transformed_point_tf;
+
+        tf2::fromMsg(origin_pose, origin_tf);
+        g2l_transform = origin_tf.inverse();
+
+        tf2::fromMsg(target_point_pose, target_point_tf);
+
+        transformed_point_tf = g2l_transform * target_point_tf;
+        
+        geometry_msgs::Pose transformed_pose;
+        tf2::toMsg(transformed_point_tf, transformed_pose);
+
+        return transformed_pose;
+    }
+
+
+    double Controller::GetYaw(const geometry_msgs::Quaternion& q)
     {
-
-//Bileşke Matrisli Kod:
-        
-        double tx = current_point_pose.position.x;
-        double ty = current_point_pose.position.y;
-
-        double target_vec[3] = {target_point_pose.position.x, target_point_pose.position.y, 1};
-
-        double current_heading_ = tf::getYaw(current_point_pose.orientation);
-        double TransformationMatrix[3][3] = {
-            {cos(-current_heading_), -sin(-current_heading_), cos(-current_heading_) * -tx - sin(-current_heading_) * -ty},
-            {sin(-current_heading_), cos(-current_heading_), sin(-current_heading_) * -tx + cos(-current_heading_) * -ty},
-            {0.0, 0.0, 1.0}
-        };
-
-        for (int i=0; i<3; i++) {
-        
-            transformed_vector[i] = 0;
-
-            for (int j=0; j<3; j++) {
-
-                transformed_vector[i] += TransformationMatrix[i][j] * target_vec[j];
-
-           }
-        }
-
-//Ayrık Matrisli Kod:
-/* 
-        double tx = -current_point_pose.position.x;
-        double ty = -current_point_pose.position.y;
-        double current_heading_ = tf::getYaw(current_point_pose.orientation);
-        double target_vector[3] = {target_point_pose.position.x, target_point_pose.position.y, 1};
-
-        double translation_matrix[3][3] = {
-            {1, 0, tx},
-            {0, 1, ty},
-            {0, 0, 1}
-        };
-
-        double rotation_matrix[3][3] = {
-            {cos(current_heading_), sin(current_heading_), 0},
-            {-sin(current_heading_), cos(current_heading_), 0},
-            {0.0, 0.0, 1.0}
-        };
-
-        double translated_vector[3];
-
-        for (int i=0; i<3; i++) {
-            translated_vector[i] = 0;
-            for (int j=0; j<3; j++) {
-
-                translated_vector[i] += translation_matrix[i][j] * target_vector[j];
-
-            }
-        }
-
-        for (int i=0; i<3; i++) {
-            transformed_vector[i] = 0;
-            for (int j=0; j<3; j++) {
-
-                transformed_vector[i] += rotation_matrix[i][j] * translated_vector[j];
-    
-            }
-        }
- */
-
-
-//Matrissiz Kod:
-/* 
-        double translated_x = target_point_pose.position.x - current_point_pose.position.x;
-        double translated_y = target_point_pose.position.y - current_point_pose.position.y;
-        double current_heading_ = tf::getYaw(current_point_pose.orientation);
-
-        transformed_vector[0] = translated_x * cos(current_heading_) + translated_y * sin(current_heading_);
-        transformed_vector[1] = translated_x * -sin(current_heading_) + translated_y * cos(current_heading_);
-        transformed_vector[2] = 1;
- */
-
-
-//tf Kütüphaneli Kod:
-/* 
-        tf::Vector3 target_vec(target_point_pose.position.x, target_point_pose.position.y, 0.0);
-        tf::Vector3 current_vec(current_point_pose.position.x, current_point_pose.position.y, 0.0);
-
-        tf::Transform transform;
-        tf::Quaternion q;
-        q.setRPY(0, 0, tf::getYaw(current_point_pose.orientation));
-        transform.setRotation(q);
-        transform.setOrigin(current_vec);
-
-        tf::Vector3 error_vec = transform.inverse() * target_vec;
-
-        transformed_vector[0] = error_vec.x();
-        transformed_vector[1] = error_vec.y();
-        transformed_vector[2] = 1;
- */
-
+        return atan2(2.0 * (q.w * q.z + q.x * q.y) , 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
     }
 
 }

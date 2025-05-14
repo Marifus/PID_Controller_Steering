@@ -4,5 +4,8 @@ pid_katsayilari:
   Kd: 0.7
 
 ctrl_index: 8
-ctrl_max: 3
+ctrl_max: 2
 axle_length: 0.9842
+velocity: 10
+input_log: false
+output_log: false

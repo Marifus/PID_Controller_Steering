@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   geometry_msgs
   autoware_msgs
-  tf
+  tf2
 )
 
 ## System dependencies are found with CMake's conventions
@@ -107,7 +107,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES pid_pkg
-  CATKIN_DEPENDS roscpp nav_msgs geometry_msgs autoware_msgs tf
+  CATKIN_DEPENDS roscpp nav_msgs geometry_msgs autoware_msgs tf2
   DEPENDS system_lib
 )
 
