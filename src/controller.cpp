@@ -84,8 +84,8 @@ namespace controller
 
         vehicle_odom = *msg;
         current_heading = GetYaw(vehicle_odom.pose.pose.orientation);
-        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length*0.5;
-        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length*0.5;
+        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length*0;
+        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length*0;
 
         if(input_log)
         {
