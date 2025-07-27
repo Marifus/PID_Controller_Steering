@@ -3,44 +3,41 @@
 namespace controller
 {
 
-    Controller::Controller(ros::NodeHandle& nh) : nh_(nh)
+    Controller::Controller(ros::NodeHandle& nh) : nh_(nh), marker_id(0), d_error(0), i_error(0), prev_error(0), prev_time(0)
     {
-
         if (!ReadParameters())
         {
             ROS_ERROR("Parametreler Okunamadi.");
             ros::requestShutdown();
         }
 
-        marker_id = 0;
-        d_error = 0;
-        i_error = 0;
-        prev_error = 0;
-
-        path_sub = nh_.subscribe("/shortest_path", 10, &Controller::PathCallback, this);
-        odom_sub = nh_.subscribe("/odom", 10, &Controller::OdomCallback, this);
-        control_pub = nh_.advertise<autoware_msgs::VehicleCmd>("/vehicle_cmd", 10);
-        path_pub = nh_.advertise<nav_msgs::Path>("/path", 10);
-        mark_pub = nh_.advertise<visualization_msgs::Marker>("/waypoint", 10);
-
+        path_sub = nh_.subscribe(path_topic, 10, &Controller::PathCallback, this);
+        odom_sub = nh_.subscribe(odom_topic, 10, &Controller::OdomCallback, this);
+        control_pub = nh_.advertise<autoware_msgs::VehicleCmd>(cmd_topic, 10);
+        mark_pub = nh_.advertise<visualization_msgs::Marker>(marker_topic, 10);
+        //path_pub = nh_.advertise<nav_msgs::Path>("/path", 10);
     }
 
 
     bool Controller::ReadParameters()
     {
-        if (!nh_.getParam("pid_katsayilari/Kp", Kp)) return false;
-        if (!nh_.getParam("pid_katsayilari/Ki", Ki)) return false;
-        if (!nh_.getParam("pid_katsayilari/Kd", Kd)) return false;
-        if (!nh_.getParam("ctrl_index", ctrl_index)) return false;
-        if (!nh_.getParam("ctrl_max", ctrl_max)) return false;
-        if (!nh_.getParam("axle_length", axle_length)) return false;
+        if (!nh_.getParam("pid_coefficients/Kp", Kp)) return false;
+        if (!nh_.getParam("pid_coefficients/Ki", Ki)) return false;
+        if (!nh_.getParam("pid_coefficients/Kd", Kd)) return false;
+        if (!nh_.getParam("ctrl/ctrl_index", ctrl_index)) return false;
+        if (!nh_.getParam("ctrl/ctrl_max", ctrl_max)) return false;
+        if (!nh_.getParam("wheelbase", wheelbase)) return false;
         if (!nh_.getParam("velocity", velocity)) return false;
-        if (!nh_.getParam("input_log", input_log)) return false;
-        if (!nh_.getParam("output_log", output_log)) return false;
+        if (!nh_.getParam("logs/input_log", input_log)) return false;
+        if (!nh_.getParam("logs/output_log", output_log)) return false;
+        if (!nh_.getParam("subscribe_topics/odom_topic", odom_topic)) return false;
+        if (!nh_.getParam("subscribe_topics/path_topic", path_topic)) return false;
+        if (!nh_.getParam("publish_topics/cmd_topic", cmd_topic)) return false;
+        if (!nh_.getParam("publish_topics/marker_topic", marker_topic)) return false;
 
         ROS_INFO("PID Katsayilari: [%f, %f, %f]", Kp, Ki, Kd);
         ROS_INFO("Control Index: [%d]   Control Max: [%f]", ctrl_index, ctrl_max);
-        ROS_INFO("Sase Uzunlugu: [%f]", axle_length);
+        ROS_INFO("Dingil Mesafesi: [%f]", wheelbase);
         ROS_INFO("Arac Hizi: [%f]", velocity);
         ROS_INFO("Girdi/Cikti Gosterme: [%d, %d]", input_log, output_log);
 
@@ -84,8 +81,8 @@ namespace controller
 
         vehicle_odom = *msg;
         current_heading = GetYaw(vehicle_odom.pose.pose.orientation);
-        vehicle_odom.pose.pose.position.x += cos(current_heading)*axle_length*0;
-        vehicle_odom.pose.pose.position.y += sin(current_heading)*axle_length*0;
+        vehicle_odom.pose.pose.position.x += cos(current_heading)*wheelbase*0;
+        vehicle_odom.pose.pose.position.y += sin(current_heading)*wheelbase*0;
 
         if(input_log)
         {
@@ -101,7 +98,6 @@ namespace controller
         else
         {
             autoware_msgs::VehicleCmd control_msg;
-            control_msg.twist_cmd.twist.angular.z = 0;
             control_msg.twist_cmd.twist.linear.x = 0;
             control_pub.publish(control_msg);
         }
@@ -111,7 +107,13 @@ namespace controller
     void Controller::ControlOutput()
     {
         geometry_msgs::PoseStamped target_point = ChooseWaypoint(vehicle_odom.pose.pose, path, ctrl_index, ctrl_max);
-        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd);
+
+        current_time = ros::Time::now().toSec();
+        double dt = current_time - prev_time;
+
+        double steering_angle = PID(UpdateError(target_point.pose, vehicle_odom.pose.pose), Kp, Ki, Kd, dt);
+
+        prev_time = current_time;
 
         double steering_angle_degree = steering_angle * (180 / M_PI);
 
@@ -139,10 +141,11 @@ namespace controller
     }
 
 
-    double Controller::PID(double error, double t_Kp, double t_Ki, double t_Kd)
+    double Controller::PID(double error, double t_Kp, double t_Ki, double t_Kd, double dt)
     {
-        i_error += error;
-        d_error = error - prev_error;
+        i_error += error * dt;
+        if (dt != 0) d_error = (error - prev_error) / dt;
+        else d_error = 0;
         prev_error = error;
 
         return (t_Kp * error) + (t_Ki * i_error) + (t_Kd * d_error);

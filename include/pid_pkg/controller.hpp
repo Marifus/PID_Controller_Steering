@@ -23,18 +23,22 @@ namespace controller {
         ros::Subscriber path_sub;
         ros::Subscriber odom_sub;
         ros::Publisher control_pub;
-        ros::Publisher path_pub;
+        //ros::Publisher path_pub;
         ros::Publisher mark_pub;
 
         int wp_index, ctrl_index;
         int marker_id;
         double Kp, Ki, Kd, current_heading;
-        double axle_length, ctrl_max;
+        double wheelbase, ctrl_max;
         double velocity;
+        std::string odom_topic, path_topic, cmd_topic, marker_topic;
         
         double d_error;
         double i_error;
         double prev_error;
+
+        double prev_time;
+        double current_time;
 
         nav_msgs::Odometry vehicle_odom;
         nav_msgs::Path path;
@@ -44,7 +48,7 @@ namespace controller {
         void PathCallback(const nav_msgs::Path::ConstPtr& msg);
         void OdomCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void ControlOutput();
-        double PID(double error, double t_Kp, double t_Ki, double t_Kd);
+        double PID(double error, double t_Kp, double t_Ki, double t_Kd, double dt);
         double UpdateError(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose);
         geometry_msgs::PoseStamped ChooseWaypoint(const geometry_msgs::Pose& current_point_pose, const nav_msgs::Path& t_path, int ctrl_idx, double ctrl_max);
         int ClosestWaypointIndex(const geometry_msgs::Pose& current_pose, const nav_msgs::Path& t_path);

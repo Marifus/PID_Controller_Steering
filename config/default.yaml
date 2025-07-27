@@ -1,11 +1,23 @@
-pid_katsayilari:
-  Kp: 1.3
-  Ki: 0
-  Kd: 0.7
+pid_coefficients:               
+  Kp: 1.7                         #yüksek sapmalardan sonra sürekli salınım yapıyorsa düşür, yola yavaş dönüyorsa yükselt
+  Ki: 0                           #hiç bulaşma hayatını siler
+  Kd: 0.2                         #düşük sapmalardan sonra sürekli salınım yapıyorsa yükselt, yola yavaş dönüyorsa düşür
 
-ctrl_index: 8
-ctrl_max: 2
-axle_length: 0.9842
-velocity: 10
-input_log: false
-output_log: false
+ctrl:
+  ctrl_index: 8                   #kontrolcünün kaç index sonraki noktayı hedef aldığı
+  ctrl_max: 2.5                   #kontrolcünün maksimum kaç metre uzaktaki noktayı hedef aldığı
+
+wheelbase: 3.5                    #dingil mesafesi/araç uzunluğu
+velocity: 4                       #hız
+
+logs:
+  input_log: false                #işine yaramaz
+  output_log: false               #işine yaramaz
+
+subscribe_topics:
+  odom_topic: /odom
+  path_topic: /shortest_path
+
+publish_topics:
+  cmd_topic: /vehicle_cmd
+  marker_topic: /waypoint

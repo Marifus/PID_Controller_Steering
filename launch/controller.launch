@@ -3,5 +3,6 @@
     <node name="controller_node" pkg="pid_pkg" type="pid_node" output="screen">
         <rosparam command="load" file="$(find pid_pkg)/config/default.yaml" />
     </node>
+    <node name="csv_logger_node" pkg="csv_logger_pkg" type="csv_logger_node" />
 
 </launch>
