@@ -1,7 +1,7 @@
 pid_coefficients:               
-  Kp: 1.7                         #yüksek sapmalardan sonra sürekli salınım yapıyorsa düşür, yola yavaş dönüyorsa yükselt
+  Kp: 1.4                         #yüksek sapmalardan sonra sürekli salınım yapıyorsa düşür, yola yavaş dönüyorsa yükselt
   Ki: 0                           #hiç bulaşma hayatını siler
-  Kd: 0.2                         #düşük sapmalardan sonra sürekli salınım yapıyorsa yükselt, yola yavaş dönüyorsa düşür
+  Kd: 0.35                        #düşük sapmalardan sonra sürekli salınım yapıyorsa yükselt, yola yavaş dönüyorsa düşür
 
 ctrl:
   ctrl_index: 8                   #kontrolcünün kaç index sonraki noktayı hedef aldığı
@@ -17,7 +17,10 @@ logs:
 subscribe_topics:
   odom_topic: /odom
   path_topic: /shortest_path
+  docking_signal_topic: /docking_signal
 
 publish_topics:
   cmd_topic: /vehicle_cmd
   marker_topic: /waypoint
+
+herhangi_bir_sey: 0.5             #saniye boyunca yeni path gelmezse arac durur

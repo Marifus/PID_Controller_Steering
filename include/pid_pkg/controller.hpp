@@ -11,6 +11,7 @@
 #include <cmath>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <std_msgs/Bool.h>
 
 namespace controller {
 
@@ -22,16 +23,19 @@ namespace controller {
         ros::NodeHandle& nh_;
         ros::Subscriber path_sub;
         ros::Subscriber odom_sub;
+        ros::Subscriber docking_signal_sub;
         ros::Publisher control_pub;
-        //ros::Publisher path_pub;
         ros::Publisher mark_pub;
+        //ros::Publisher path_pub;
 
         int wp_index, ctrl_index;
         int marker_id;
         double Kp, Ki, Kd, current_heading;
         double wheelbase, ctrl_max;
         double velocity;
-        std::string odom_topic, path_topic, cmd_topic, marker_topic;
+        std::string odom_topic, path_topic, cmd_topic, marker_topic, docking_signal_topic;
+        double herhangi_bir_sey;
+        bool docking, path_received;
         
         double d_error;
         double i_error;
@@ -43,10 +47,14 @@ namespace controller {
         nav_msgs::Odometry vehicle_odom;
         nav_msgs::Path path;
 
+        ros::Timer timer;
+
         bool ReadParameters();
         //void PathCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void PathCallback(const nav_msgs::Path::ConstPtr& msg);
         void OdomCallback(const nav_msgs::Odometry::ConstPtr& msg);
+        void DockingCallback(const std_msgs::Bool& msg);
+        void TimerCallback(const ros::TimerEvent&);
         void ControlOutput();
         double PID(double error, double t_Kp, double t_Ki, double t_Kd, double dt);
         double UpdateError(const geometry_msgs::Pose& target_point_pose, const geometry_msgs::Pose& current_point_pose);
@@ -54,6 +62,7 @@ namespace controller {
         int ClosestWaypointIndex(const geometry_msgs::Pose& current_pose, const nav_msgs::Path& t_path);
         geometry_msgs::Pose LocalTransform(const geometry_msgs::Pose& origin_pose, const geometry_msgs::Pose& target_point_pose);
         double GetYaw(const geometry_msgs::Quaternion& q);
+
 
         public:
 

@@ -3,7 +3,8 @@
 namespace controller
 {
 
-    Controller::Controller(ros::NodeHandle& nh) : nh_(nh), marker_id(0), d_error(0), i_error(0), prev_error(0), prev_time(0)
+    Controller::Controller(ros::NodeHandle& nh) 
+        : nh_(nh), marker_id(0), d_error(0), i_error(0), prev_error(0), prev_time(0), docking{false}, path_received{false}
     {
         if (!ReadParameters())
         {
@@ -14,7 +15,10 @@ namespace controller
         path_sub = nh_.subscribe(path_topic, 10, &Controller::PathCallback, this);
         odom_sub = nh_.subscribe(odom_topic, 10, &Controller::OdomCallback, this);
         control_pub = nh_.advertise<autoware_msgs::VehicleCmd>(cmd_topic, 10);
+        docking_signal_sub = nh_.subscribe(docking_signal_topic, 10, &Controller::DockingCallback, this);
         mark_pub = nh_.advertise<visualization_msgs::Marker>(marker_topic, 10);
+
+        timer = nh_.createTimer(ros::Duration(herhangi_bir_sey), &Controller::TimerCallback, this);
         //path_pub = nh_.advertise<nav_msgs::Path>("/path", 10);
     }
 
@@ -32,8 +36,10 @@ namespace controller
         if (!nh_.getParam("logs/output_log", output_log)) return false;
         if (!nh_.getParam("subscribe_topics/odom_topic", odom_topic)) return false;
         if (!nh_.getParam("subscribe_topics/path_topic", path_topic)) return false;
+        if (!nh_.getParam("subscribe_topics/docking_signal_topic", docking_signal_topic)) return false;
         if (!nh_.getParam("publish_topics/cmd_topic", cmd_topic)) return false;
         if (!nh_.getParam("publish_topics/marker_topic", marker_topic)) return false;
+        if (!nh_.getParam("herhangi_bir_sey", herhangi_bir_sey)) return false;
 
         ROS_INFO("PID Katsayilari: [%f, %f, %f]", Kp, Ki, Kd);
         ROS_INFO("Control Index: [%d]   Control Max: [%f]", ctrl_index, ctrl_max);
@@ -61,6 +67,7 @@ namespace controller
     void Controller::PathCallback(const nav_msgs::Path::ConstPtr& msg)
     {
         path = *msg;
+        path_received = true;
 
         for (int i = 0; i < path.poses.size(); ++i)
         {
@@ -78,7 +85,6 @@ namespace controller
 
     void Controller::OdomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
-
         vehicle_odom = *msg;
         current_heading = GetYaw(vehicle_odom.pose.pose.orientation);
         vehicle_odom.pose.pose.position.x += cos(current_heading)*wheelbase*0;
@@ -90,17 +96,25 @@ namespace controller
             ROS_INFO("Simdiki Yaw: [%f]", current_heading);
         }
 
-        if (path.poses.size() != 0)
-        {
-            ControlOutput();
-        }
-
-        else
-        {
+        if (path.poses.size() == 0 || docking)
+        {            
             autoware_msgs::VehicleCmd control_msg;
             control_msg.twist_cmd.twist.linear.x = 0;
             control_pub.publish(control_msg);
-        }
+        } else ControlOutput();
+    }
+
+
+    void Controller::DockingCallback(const std_msgs::Bool& msg)
+    {
+        docking = msg.data;
+    }
+
+
+    void Controller::TimerCallback(const ros::TimerEvent&)
+    {
+        if(!path_received) path.poses.clear();
+        else path_received = false;
     }
 
 
