@@ -1,26 +1,50 @@
 pid_coefficients:               
-  Kp: 1.4                         #yüksek sapmalardan sonra sürekli salınım yapıyorsa düşür, yola yavaş dönüyorsa yükselt
-  Ki: 0                           #hiç bulaşma hayatını siler
-  Kd: 0.35                        #düşük sapmalardan sonra sürekli salınım yapıyorsa yükselt, yola yavaş dönüyorsa düşür
+  Kp_max: 2.80                            #düşük hızda yüksek sapmalardan sonra sürekli salınım yapıyorsa düşür, yola yavaş dönüyorsa yükselt
+  Ki_max: 0.00                            #hiç bulaşma hayatını siler 1.4 0.35 / 1.00 0.02 / 2.80 0.08
+  Kd_max: 0.08                            #düşük hızda düşük sapmalardan sonra sürekli salınım yapıyorsa yükselt, yola yavaş dönüyorsa düşür
+  Kp_min: 1.00                            #yüksek hızda yüksek sapmalardan sonra sürekli salınım yapıyorsa düşür, yola yavaş dönüyorsa yükselt
+  Ki_min: 0.00                            #hiç bulaşma hayatını siler
+  Kd_min: 0.02                            #yüksek hızda düşük sapmalardan sonra sürekli salınım yapıyorsa yükselt, yola yavaş dönüyorsa düşür
+
 
 ctrl:
-  ctrl_index: 8                   #kontrolcünün kaç index sonraki noktayı hedef aldığı
-  ctrl_max: 2.5                   #kontrolcünün maksimum kaç metre uzaktaki noktayı hedef aldığı
+  ctrl_index: 10                          #kontrolcünün kaç index sonraki noktayı hedef aldığı
+  low_ctrl_max: 2.50                      #kontrolcünün düşük hızda maksimum kaç metre uzaktaki noktayı hedef aldığı
+  high_ctrl_max: 2.50                     #kontrolcünün yüksek hızda maksimum kaç metre uzaktaki noktayı hedef aldığı
 
-wheelbase: 3.5                    #dingil mesafesi/araç uzunluğu
-velocity: 4                       #hız
+
+velocity_controller:
+  velocity:
+    max_velocity: 5.00                    #maksimum hız (ne cinsinden olduğu hakkında hiçbir fikrim yok)
+    low_velocity: 1.2                     #düşük kabul edilen hız değeri (m/s)
+    high_velocity: 2.2                    #yüksek kabul edilen hız değeri (m/s)
+  curvature:
+    curvature_coefficient: 1.50           #eğriliğin hıza etkisi
+    curvature_index: 30                   #eğrilik hesaplanırken kaçıncı yol noktasının baz alındığı
+    curvature_lookahead: 5.00             #eğrilik hesaplanırken maksimum kaç metre uzaktaki noktanın baz alındığı
+    max_curvature: 1.00                   #hesaplanana maksimum eğrilik
+
+
+wheelbase: 3.50                           #dingil mesafesi/araç uzunluğu
+herhangi_bir_sey: 0.50                    #saniye boyunca yeni path gelmezse arac durur
+
 
 logs:
-  input_log: false                #işine yaramaz
-  output_log: false               #işine yaramaz
+  input_log: false                        #işine yaramaz
+  output_log: false                       #işine yaramaz
+
 
 subscribe_topics:
   odom_topic: /odom
   path_topic: /shortest_path
   docking_signal_topic: /docking_signal
 
+
 publish_topics:
   cmd_topic: /vehicle_cmd
   marker_topic: /waypoint
 
-herhangi_bir_sey: 0.5             #saniye boyunca yeni path gelmezse arac durur
+
+low_pass_filter:
+  filter_length: 50
+  weight_current: 0.80
