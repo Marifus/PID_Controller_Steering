@@ -118,8 +118,6 @@ namespace controller
             ROS_INFO("Mevcut Hiz [%f]", current_velocity);
         }
 
-        ROS_INFO("Mevcut Hiz [%f]", current_velocity);
-
         if (path.poses.size() == 0 || docking)
         {            
             autoware_msgs::VehicleCmd control_msg;
@@ -427,9 +425,6 @@ namespace controller
             ROS_INFO("Guncel PID Katsayilari: [%f, %f, %f]", t_Kp, t_Ki, t_Kd);
             ROS_INFO("Guncel Ctrl Max: [%f]", ctrl_max);
         }
-
-            ROS_INFO("Guncel PID Katsayilari: [%f, %f, %f]", t_Kp, t_Ki, t_Kd);
-            ROS_INFO("Guncel Ctrl Max: [%f]", ctrl_max);
     }
 
 }
