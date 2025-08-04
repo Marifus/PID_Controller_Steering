@@ -16,10 +16,10 @@ ctrl:
 velocity_controller:
   velocity:
     max_velocity: 5.00                    #maksimum hız (ne cinsinden olduğu hakkında hiçbir fikrim yok)
-    low_velocity: 1.2                     #düşük kabul edilen hız değeri (m/s)
-    high_velocity: 2.2                    #yüksek kabul edilen hız değeri (m/s)
+    low_velocity: 1.00                    #düşük kabul edilen hız değeri (m/s)
+    high_velocity: 2.20                   #yüksek kabul edilen hız değeri (m/s)
   curvature:
-    curvature_coefficient: 1.50           #eğriliğin hıza etkisi
+    curvature_coefficient: 1.25           #eğriliğin hıza etkisi
     curvature_index: 30                   #eğrilik hesaplanırken kaçıncı yol noktasının baz alındığı
     curvature_lookahead: 5.00             #eğrilik hesaplanırken maksimum kaç metre uzaktaki noktanın baz alındığı
     max_curvature: 1.00                   #hesaplanana maksimum eğrilik
@@ -46,5 +46,5 @@ publish_topics:
 
 
 low_pass_filter:
-  filter_length: 50
+  filter_length: 30
   weight_current: 0.80

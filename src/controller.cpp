@@ -118,6 +118,8 @@ namespace controller
             ROS_INFO("Mevcut Hiz [%f]", current_velocity);
         }
 
+        ROS_INFO("Mevcut Hiz [%f]", current_velocity);
+
         if (path.poses.size() == 0 || docking)
         {            
             autoware_msgs::VehicleCmd control_msg;
@@ -367,7 +369,9 @@ namespace controller
 
     double Controller::CalculateVelocityCmd(double velocity, double curvature, double k_curvature)
     {
-        ROS_INFO("Path Curvature: [%f]", curvature);
+        if (output_log) {
+            ROS_INFO("Path Curvature: [%f]", curvature);   
+        }
         return (velocity/(curvature*k_curvature+1));
     }
 
@@ -391,28 +395,31 @@ namespace controller
 
     void Controller::UpdatePIDCoefficients(double& t_Kp, double& t_Ki, double& t_Kd, double& t_ctrl_max)
     {
-        int fark = high_velocity - low_velocity;
+        double low_mid_velocity = low_velocity + (high_velocity-low_velocity)*0.25;
+        double high_mid_velocity = high_velocity - (high_velocity-low_velocity)*0.25;
 
-        if (current_velocity<low_velocity+fark*0.25) {
+        if (current_velocity<low_mid_velocity) {
             t_Kp = Kp_max;
             t_Ki = Ki_max;
             t_Kd = Kd_max;
-            t_ctrl_max = high_ctrl_max;
+            t_ctrl_max = low_ctrl_max;
         } 
         
-        else if (current_velocity>high_velocity-fark*0.25) {
+        else if (current_velocity>high_mid_velocity) {
             t_Kp = Kp_min;
             t_Ki = Ki_min;
             t_Kd = Kd_min;
-            t_ctrl_max = low_ctrl_max;
+            t_ctrl_max = high_ctrl_max;
         }
         
         else
         {
-            t_Kp = (Kp_max+Kp_min)/2 + (Kp_max-Kp_min)/2*cos(M_PI/(fark*0.5)*(current_velocity-low_velocity-fark*0.25));
-            t_Ki = (Ki_max+Ki_min)/2 + (Ki_max-Ki_min)/2*cos(M_PI/(fark*0.5)*(current_velocity-low_velocity-fark*0.25));
-            t_Kd = (Kd_max+Kd_min)/2 + (Kd_max-Kd_min)/2*cos(M_PI/(fark*0.5)*(current_velocity-low_velocity-fark*0.25));
-            t_ctrl_max = (low_ctrl_max+high_ctrl_max)/2 - (high_ctrl_max-low_ctrl_max)/2*cos(M_PI/(fark*0.5)*(current_velocity-low_velocity-fark*0.25));;
+            double fark = high_mid_velocity - low_mid_velocity;
+
+            t_Kp = (Kp_max+Kp_min)/2 + (Kp_max-Kp_min)/2*cos(M_PI/(fark)*(current_velocity-low_mid_velocity)/fark);
+            t_Ki = (Ki_max+Ki_min)/2 + (Ki_max-Ki_min)/2*cos(M_PI/(fark)*(current_velocity-low_mid_velocity)/fark);
+            t_Kd = (Kd_max+Kd_min)/2 + (Kd_max-Kd_min)/2*cos(M_PI/(fark)*(current_velocity-low_mid_velocity)/fark);
+            t_ctrl_max = (low_ctrl_max+high_ctrl_max)/2 - (high_ctrl_max-low_ctrl_max)/2*cos(M_PI/(fark)*(current_velocity-low_mid_velocity)/fark);
         }
 
         if (output_log)
@@ -420,6 +427,9 @@ namespace controller
             ROS_INFO("Guncel PID Katsayilari: [%f, %f, %f]", t_Kp, t_Ki, t_Kd);
             ROS_INFO("Guncel Ctrl Max: [%f]", ctrl_max);
         }
+
+            ROS_INFO("Guncel PID Katsayilari: [%f, %f, %f]", t_Kp, t_Ki, t_Kd);
+            ROS_INFO("Guncel Ctrl Max: [%f]", ctrl_max);
     }
 
 }
